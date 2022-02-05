@@ -4,7 +4,6 @@ import Button from '@mui/material/Button';
 
 const ConfirmDialog = (props) => {
 	const { confirmDialog, setConfirmDialog } = props;
-	console.log(confirmDialog);
 
 	return (
 		<Dialog open={confirmDialog.isOpen}>

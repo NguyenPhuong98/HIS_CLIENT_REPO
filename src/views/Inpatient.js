@@ -11,19 +11,75 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrashAlt, faPrint, faUndo, faSave, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Typography } from '@mui/material';
+import { makeStyles, styled } from '@mui/styles';
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
+import PropTypes from 'prop-types';
+import { default as Button1 } from '@mui/material/Button';
 import { apiUrl } from '../contexts/Constants';
 import { AuthContext } from '../contexts/AuthContext';
 import { InpatientContext } from '../contexts/InpatientContext';
 import { PrintCare } from '../components/inpatients/PrintCare';
 import { ConfirmDialog } from '../components/commons';
+import { StringToObject, DatetimeToString } from '../utils/commons';
 
+const useStyles = makeStyles({
+	center: {
+		textAlign: 'center',
+	},
+	button: {
+		fontSize: '16px',
+	},
+	time_print: {
+		display: 'flex',
+		marginBottom: '20px',
+	},
+});
+
+const BootstrapDialog = styled(Dialog)(({ theme }) => ({
+	'& .MuiDialogContent-root': {
+		// padding: '30px',
+	},
+	'& .MuiDialogActions-root': {
+		// padding: theme.spacing(1),
+	},
+}));
+
+const BootstrapDialogTitle = (props) => {
+	const { children, onClose, ...other } = props;
+
+	return (
+		<DialogTitle sx={{ m: 0, p: 2 }} {...other}>
+			{children}
+			{onClose ? (
+				<IconButton
+					aria-label="close"
+					onClick={onClose}
+					sx={{
+						position: 'absolute',
+						right: 8,
+						top: 8,
+						color: (theme) => theme.palette.grey[500],
+					}}
+				>
+					<CloseIcon />
+				</IconButton>
+			) : null}
+		</DialogTitle>
+	);
+};
+
+BootstrapDialogTitle.propTypes = {
+	children: PropTypes.node,
+	onClose: PropTypes.func.isRequired,
+};
 const Inpatient = () => {
 	let { id } = useParams();
 	const navigate = useNavigate();
-	const componentRef = useRef();
-	const handlePrint = useReactToPrint({
-		content: () => componentRef.current,
-	});
+	const printRef = useRef();
+	const classes = useStyles();
+
 	const {
 		authState: { user },
 	} = useContext(AuthContext);
@@ -38,13 +94,18 @@ const Inpatient = () => {
 		commands: [],
 		user: user[0].MaNV,
 	});
-	const [show, setShow] = useState(false);
+	const [show, setShow] = useState({
+		showSearchResult: false,
+		showChoseTimePrint: false,
+	});
 	const [searchText, setSearchText] = useState('');
 	const [listCommand, setListCommand] = useState([]);
 	const [couponCare, setCouponCare] = useState({
 		listCouponCare: [],
 		againLoad: false,
 	});
+	const [couponCarePeriod, setCouponCarePeriod] = useState([]);
+	console.log('log lần 1:', couponCarePeriod);
 	const [state, setState] = useState({
 		stateCreate: false,
 		stateEdit: true,
@@ -65,6 +126,10 @@ const Inpatient = () => {
 		onClick: () => {},
 	});
 
+	const [timePrint, setTimePrint] = useState({
+		timeFrom: new Date(new Date().setHours(0, 0, 0, 0)),
+		timeTo: new Date(new Date().setHours(23, 59, 59, 999)),
+	});
 	const { time, couponCode, happen, commands } = careInfo;
 	const {
 		stateCreate,
@@ -79,6 +144,8 @@ const Inpatient = () => {
 		stateCommands,
 	} = state;
 	const { listCouponCare, againLoad } = couponCare;
+	const { showSearchResult, showChoseTimePrint } = show;
+	const { timeFrom, timeTo } = timePrint;
 	useEffect(() => {
 		loadCommands();
 	}, []);
@@ -103,6 +170,17 @@ const Inpatient = () => {
 		} catch (error) {
 			console.error(error);
 		}
+	};
+
+	const getPeriodCouponCares = async () => {
+		try {
+			let TimeFrom = DatetimeToString(timeFrom);
+			let TimeTo = DatetimeToString(timeTo);
+			const response = await axios.get(
+				`${apiUrl}/inpatients/couponcare?MaBA=${id}&TimeFrom=${TimeFrom}&TimeTo=${TimeTo}`
+			);
+			setCouponCarePeriod(response.data.couponCares);
+		} catch (error) {}
 	};
 
 	// Handle when add/remove command
@@ -158,11 +236,14 @@ const Inpatient = () => {
 	};
 	// Handle button
 	const handleCreate = () => {
+		setShow({ ...show, showChoseTimePrint: true });
 		setState({
 			...state,
 			stateCreate: true,
 			stateSave: false,
+			stateEdit: true,
 			stateCancel: false,
+			stateRemove: true,
 			stateTime: false,
 			stateHappen: false,
 			stateSearch: false,
@@ -174,6 +255,7 @@ const Inpatient = () => {
 		setState({
 			...state,
 			stateCancel: false,
+			stateEdit: true,
 			stateSave: false,
 			stateTime: false,
 			stateHappen: false,
@@ -200,33 +282,24 @@ const Inpatient = () => {
 					stateCancel: true,
 				});
 			}
-			// axios({
-			// 	method: 'DELETE',
-			// 	url: `${apiUrl}/inpatients/couponcare?MaBA=${id}&MaDTri=${couponCode}`,
-			// })
-			// 	.then((response) => {
-			// 		if (response.data.success) {
-			// 			console.log(11111111);
-			// 			setCouponCare({ ...couponCare, againLoad: true });
-			// 			toast.warn('Xóa phiếu chăm sóc thành công!');
-			// 		}
-			// 	})
-			// 	.catch((error) => {
-			// 		console.log(error);
-			// 	});
 		} catch (error) {}
+	};
+
+	const handleChosePrint = useReactToPrint({
+		content: () => printRef.current,
+	});
+
+	const handleClose = () => {
+		setShow({ ...show, showChoseTimePrint: false });
 	};
 	const handleSave = async () => {
 		if (happen === '' || commands.length === 0) {
 			toast.warn('Bạn chưa nhập thông tin diễn biến/y lệnh');
 		} else {
 			try {
-				let timeOrigin = time;
-				let isoTime = new Date(new Date(timeOrigin).toISOString());
-				var fixedTime = new Date(isoTime.getTime() - timeOrigin.getTimezoneOffset() * 60000);
 				const dataPost = {
 					...careInfo,
-					time: fixedTime,
+					time: DatetimeToString(time),
 					commands: commands.map((command) => `${command.ID}&${command.Name}`).join('; '),
 				};
 				console.log('dataPost:', dataPost);
@@ -253,6 +326,8 @@ const Inpatient = () => {
 		setState({
 			...state,
 			stateCreate: false,
+			stateEdit: true,
+			stateRemove: true,
 			stateSave: true,
 			stateCancel: true,
 			stateTime: true,
@@ -265,10 +340,7 @@ const Inpatient = () => {
 	// Handle when click CouponCare
 	const handleClickCouponCare = (couponCare) => {
 		let commands = [];
-		commands = couponCare.YLenh.split('; ').map((command) => {
-			let splitCommand = command.split('&');
-			return { ID: splitCommand[0], Name: splitCommand[1] };
-		});
+		commands = StringToObject(couponCare.YLenh);
 
 		console.log(couponCare);
 		setCareInfo({
@@ -284,19 +356,7 @@ const Inpatient = () => {
 		<>
 			{inpatient && (
 				<>
-					<ToastContainer
-						position="top-center"
-						autoClose={3000}
-						hideProgressBar={false}
-						newestOnTop={false}
-						closeOnClick={false}
-						rtl={false}
-						pauseOnFocusLoss
-						draggable
-						pauseOnHover
-					/>
-					<ConfirmDialog confirmDialog={confirmDialog} setConfirmDialog={setConfirmDialog} />
-					<div className="main" onClick={(e) => setShow(false)}>
+					<div className="main" onClick={(e) => setShow({ ...show, showSearchResult: false })}>
 						<div className="info-hc mt-3 text-dark">
 							<div className="info-hc-item info-hc-name">
 								<label className="info-hc-item__title info-hc-name__tite">Họ và tên</label>
@@ -445,7 +505,15 @@ const Inpatient = () => {
 								<FontAwesomeIcon icon={faTimes} className="mr-2 " />
 								Xóa phiếu
 							</Button>{' '}
-							<Button variant="success" className="btn-print icon-btn" disabled={statePrint} onClick={handlePrint}>
+							<Button
+								variant="success"
+								className="btn-print icon-btn"
+								disabled={statePrint}
+								onClick={(e) => {
+									e.stopPropagation();
+									setShow({ ...show, showChoseTimePrint: true });
+								}}
+							>
 								<FontAwesomeIcon icon={faPrint} className="mr-2 " />
 								In phiếu CS
 							</Button>{' '}
@@ -469,7 +537,7 @@ const Inpatient = () => {
 							</Button>{' '}
 							<div style={{ display: 'none' }}>
 								{/* <div> */}
-								<PrintCare ref={componentRef} data={inpatient} />
+								<PrintCare ref={printRef} couponCares={couponCarePeriod} inpatient={inpatient} />
 							</div>
 						</div>
 
@@ -516,13 +584,13 @@ const Inpatient = () => {
 											}}
 											onClick={(e) => {
 												e.stopPropagation();
-												setShow(true);
+												setShow({ ...show, showSearchResult: true });
 											}}
 											value={searchText}
 											disabled={stateSearch}
 											className="form-group__commands-input"
 										></Form.Control>
-										{show && (
+										{showSearchResult && (
 											<div className="search-result">
 												{FilterCommands().map((command, index) => (
 													<p className="search-result-item" key={index} onClick={() => handleChoseCommand(command)}>
@@ -580,13 +648,84 @@ const Inpatient = () => {
 												<Moment format="DD/MM/yyyy HH:mm:ss">{couponCare.NgayDTri}</Moment>
 											</td>
 											<td>{couponCare.DienBien}</td>
-											<td>{couponCare.YLenh}</td>
+											<td>
+												{StringToObject(couponCare.YLenh)
+													.map((command) => command.Name)
+													.join(';')}
+											</td>
 											<td>{couponCare.NVTH}</td>
 										</tr>
 									))}
 							</tbody>
 						</table>
 					</div>
+					<ToastContainer
+						position="top-center"
+						autoClose={3000}
+						hideProgressBar={false}
+						newestOnTop={false}
+						closeOnClick={false}
+						rtl={false}
+						pauseOnFocusLoss
+						draggable
+						pauseOnHover
+					/>
+
+					{/* Dialog delete couponCare */}
+					<ConfirmDialog confirmDialog={confirmDialog} setConfirmDialog={setConfirmDialog} />
+					{/* Chose time print */}
+					<BootstrapDialog aria-labelledby="customized-dialog-title" open={showChoseTimePrint} onClose={handleClose}>
+						<BootstrapDialogTitle id="customized-dialog-title" onClose={handleClose}>
+							Chọn khoảng thời gian in
+						</BootstrapDialogTitle>
+						<DialogContent dividers>
+							<div className={classes.time_print}>
+								<Typography style={{ width: '140px' }}>Từ ngày</Typography>
+								<DatePicker
+									className="time-input"
+									selected={timeFrom}
+									dateFormat="dd/MM/yyyy"
+									onChange={(date) => setTimePrint({ ...timePrint, timeFrom: date })}
+								/>
+							</div>
+							<div className={classes.time_print}>
+								<Typography style={{ width: '140px' }}>Đến ngày</Typography>
+								<DatePicker
+									className="time-input"
+									selected={timeTo}
+									dateFormat="dd/MM/yyyy"
+									onChange={(date) => setTimePrint({ ...timePrint, timeTo: date })}
+								/>
+							</div>
+						</DialogContent>
+						<DialogActions>
+							<Button1
+								// color="success"
+								// variant="contained"
+								autoFocus
+								onClick={() => {
+									getPeriodCouponCares();
+									setTimeout(() => {
+										handleChosePrint();
+									}, 500);
+									setShow({ ...show, showChoseTimePrint: false });
+								}}
+								className={classes.button}
+							>
+								Đồng ý
+							</Button1>
+							<Button1
+								// color="error"
+								// variant="contained"
+								onClick={() => {
+									setShow({ ...show, showChoseTimePrint: false });
+								}}
+								className={classes.button}
+							>
+								Hủy bỏ
+							</Button1>
+						</DialogActions>
+					</BootstrapDialog>
 				</>
 			)}
 		</>

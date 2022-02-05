@@ -12,8 +12,8 @@ const SearchForm = () => {
 		patientStatus: '1',
 		patientType: '2',
 		BANumber: '',
-		dateFrom: new Date().setHours(0, 0, 0, 0),
-		dateTo: new Date().setHours(23, 59, 59, 999),
+		dateFrom: new Date(new Date().setHours(0, 0, 0, 0)),
+		dateTo: new Date(new Date().setHours(23, 59, 59, 999)),
 		date: new Date(),
 	});
 	// Note

@@ -17,7 +17,7 @@ const InpatientContextProvider = ({ children }) => {
 	const [inpatientState, dispatch] = useReducer(inpatientReducer, {
 		inpatient: null,
 		inpatients: [],
-		inpatientsLoading: true,
+		inpatientsLoading: false,
 		inpatientCouponCares: [],
 	});
 

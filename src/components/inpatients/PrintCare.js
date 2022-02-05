@@ -1,8 +1,11 @@
 import { forwardRef } from 'react';
-import Table from 'react-bootstrap/Table';
+import Moment from 'react-moment';
+import { StringToObject } from '../../utils/commons';
 import logoBV from '../../assets/img/logo_bv.PNG';
 
 export const PrintCare = forwardRef((props, ref) => {
+	const inpatient = props.inpatient;
+	const couponCares = props.couponCares;
 	return (
 		<div ref={ref}>
 			<div className="print-container">
@@ -31,29 +34,29 @@ export const PrintCare = forwardRef((props, ref) => {
 					<div className="info-row">
 						<div className="info-item-wrapper info-name">
 							<span>Họ tên người bệnh: </span>
-							<span className="info-item__content">BÙI THỊ HIỀN</span>
+							<span className="info-item__content">{inpatient[0].HoDem}</span>
 						</div>
 						<div className="info-item-wrapper">
 							<span className="info-item__label">Tuổi: </span>
-							<span className="info-item__content">38</span>
+							<span className="info-item__content">{new Date().getFullYear() - inpatient[0].NamSinh}</span>
 						</div>
 						<div className="info-item-wrapper">
 							<span className="info-item__label">Giới tính: </span>
-							<span className="info-item__content">Nữ</span>
+							<span className="info-item__content">{inpatient[0].GioiTinh}</span>
 						</div>
 					</div>
 					<div className="info-row">
 						<div className="info-item-wrapper">
 							<span>Giường số: </span>
-							<span className="info-item__content">3</span>
+							<span className="info-item__content">{inpatient[0].GiuongSo}</span>
 						</div>
 						<div className="info-item-wrapper">
 							<span className="info-item__label">Buồng: </span>
-							<span className="info-item__content">406 tầng 4</span>
+							<span className="info-item__content">{inpatient[0].TenPhong}</span>
 						</div>
 						<div className="info-item-wrapper">
 							<span className="info-item__label">Chẩn đoán: </span>
-							<span className="info-item__content">2M viêm giác mạc</span>
+							<span className="info-item__content">{inpatient[0].TenCDoan}</span>
 						</div>
 					</div>
 				</div>
@@ -69,13 +72,24 @@ export const PrintCare = forwardRef((props, ref) => {
 							</tr>
 						</thead>
 						<tbody>
-							<tr>
-								<td></td>
-								<td></td>
-								<td></td>
-								<td></td>
-								<td></td>
-							</tr>
+							{couponCares &&
+								couponCares.map((couponCare) => (
+									<tr key={couponCare.MaDTri}>
+										<td>
+											<Moment format="DD/MM/yyyy">{couponCare.NgayDTri}</Moment>
+										</td>
+										<td>
+											<Moment format="HH:mm:ss">{couponCare.NgayDTri}</Moment>
+										</td>
+										<td>{couponCare.DienBien}</td>
+										<td>
+											{StringToObject(couponCare.YLenh)
+												.map((command) => command.Name)
+												.join(';')}
+										</td>
+										<td></td>
+									</tr>
+								))}
 						</tbody>
 					</table>
 				</div>
